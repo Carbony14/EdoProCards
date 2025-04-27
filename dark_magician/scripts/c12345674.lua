@@ -45,6 +45,17 @@ function s.initial_effect(c)
     e4:SetValue(LOCATION_REMOVED)
     c:RegisterEffect(e4)
 
+    local e5=Effect.CreateEffect(c)
+    e5:SetDescription(aux.Stringid(id,0)) -- you should define id earlier
+    e5:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH+CATEGORY_TOGRAVE)
+    e5:SetType(EFFECT_TYPE_IGNITION)
+    e5:SetRange(LOCATION_HAND)
+    --e5:SetCountLimit(1,id+3)
+    e5:SetCost(s.hand_cost)
+    e5:SetTarget(s.hand_target)
+    e5:SetOperation(s.hand_operation)
+    c:RegisterEffect(e5)
+
 end
 
 s.listed_names={CARD_DARK_MAGICIAN}
@@ -93,5 +104,32 @@ function s.destroy_operation(e,tp,eg,ep,ev,re,r,rp)
     local tc=Duel.GetFirstTarget()
     if tc and tc:IsRelateToEffect(e) then
         Duel.Destroy(tc,REASON_EFFECT)
+    end
+end
+
+function s.hand_cost(e,tp,eg,ep,ev,re,r,rp,chk)
+    if chk==0 then return e:GetHandler():IsAbleToGraveAsCost() end
+    Duel.SendtoGrave(e:GetHandler(),REASON_COST)
+end
+
+function s.hand_filter(c)
+    return c:ListsCode(CARD_DARK_MAGICIAN)
+		and c:IsAbleToHand()
+		and c:IsType(TYPE_SPELL)
+end
+
+function s.hand_target(e,tp,eg,ep,ev,re,r,rp,chk)
+    if chk==0 then
+        return Duel.IsExistingMatchingCard(s.hand_filter, tp, LOCATION_DECK, 0, 1, nil)
+    end
+    Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK)
+end
+
+function s.hand_operation(e,tp,eg,ep,ev,re,r,rp)
+    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
+    local g=Duel.SelectMatchingCard(tp,s.hand_filter,tp,LOCATION_DECK,0,1,1,nil)
+    if #g>0 then
+        Duel.SendtoHand(g,tp,REASON_EFFECT)
+        Duel.ConfirmCards(1-tp,g)
     end
 end

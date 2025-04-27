@@ -1,5 +1,6 @@
 --Preparation Of Dark Magic
 local s,id=GetID()
+s.listed_names={CARD_DARK_MAGICIAN}
 function s.initial_effect(c)
     -- Activate: Search from Deck or Graveyard
     local e1=Effect.CreateEffect(c)
@@ -11,7 +12,7 @@ function s.initial_effect(c)
     e1:SetOperation(s.activate)
     c:RegisterEffect(e1)
 end
-s.listed_names={CARD_DARK_MAGICIAN}
+
 function s.filter(c)
     return (c:ListsCode(CARD_DARK_MAGICIAN) or c:IsCode(CARD_DARK_MAGICIAN))
 		and c:IsAbleToHand()
