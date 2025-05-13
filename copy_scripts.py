@@ -25,7 +25,7 @@ def copy_files(source_dir, dest_dir, file_extension, file_type):
     # Ensure destination directory exists, create it if not
     if not os.path.exists(dest_dir):
         os.makedirs(dest_dir)
-    
+
     # Loop through the source directory and copy matching files
     for filename in os.listdir(source_dir):
         if filename.lower().endswith(file_extension):
