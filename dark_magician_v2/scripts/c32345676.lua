@@ -27,7 +27,7 @@ end
 function s.activate_filter(c)
     return c:IsType(TYPE_SPELL+TYPE_TRAP)
         and c:IsAbleToHand()
-        and (c:ListsCode(CARD_DARK_MAGICIAN) or c:ListsCode(30208479))
+        and (c:ListsCode(CARD_DARK_MAGICIAN) or c:ListsCode(30208479) or c:IsCode(15256925))
 end
 
 function s.activate(e,tp,eg,ep,ev,re,r,rp)
@@ -42,7 +42,7 @@ end
 function s.immune_targets(e,c)
 	return c:IsFaceup()
     and c:IsType(TYPE_SPELL+TYPE_TRAP)
-    and (c:ListsCode(CARD_DARK_MAGICIAN) or c:ListsCode(30208479))
+    and (c:ListsCode(CARD_DARK_MAGICIAN) or c:ListsCode(30208479) or c:IsCode(15256925))
     and not c:IsCode(id)
 end
 

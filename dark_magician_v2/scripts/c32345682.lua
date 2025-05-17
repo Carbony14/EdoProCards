@@ -4,6 +4,7 @@ s.listed_names={CARD_DARK_MAGICIAN, 30208479}
 
 function s.initial_effect(c)
     c:EnableReviveLimit()
+
     -- Name becomes "Magician of Black Chaos" while on the field
     local e0=Effect.CreateEffect(c)
     e0:SetType(EFFECT_TYPE_SINGLE)
@@ -14,84 +15,55 @@ function s.initial_effect(c)
     c:RegisterEffect(e0)
 
     -- Name becomes "Dark Magician" while on the GY
-    local e01=Effect.CreateEffect(c)
-    e01:SetType(EFFECT_TYPE_SINGLE)
-    e01:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
-    e01:SetCode(EFFECT_CHANGE_CODE)
-    e01:SetRange(LOCATION_GRAVE)
-    e01:SetValue(CARD_DARK_MAGICIAN)
-    c:RegisterEffect(e01)
-
-    -- Special summon a Spellcaster from the GY or Banishement zone
-    local e1=Effect.CreateEffect(c)
-    e1:SetDescription(aux.Stringid(id, 0))
-    e1:SetCategory(CATEGORY_SPECIAL_SUMMON)
-    e1:SetType(EFFECT_TYPE_IGNITION)
-    e1:SetRange(LOCATION_MZONE)
-    e1:SetCountLimit(1)
-    e1:SetTarget(s.sptg)
-    e1:SetOperation(s.spop)
-    c:RegisterEffect(e1)
-
-end
-
--- Special summon Spellcaster in GY or Banished
-function s.spfilter(c,e,tp)
-    return c:IsRace(RACE_SPELLCASTER) and c:IsCanBeSpecialSummoned(e,0,tp,false,false)
-end
-
-function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
-    if chk==0 then
-        return Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_GRAVE+LOCATION_REMOVED,0,1,nil,e,tp)
-    end
-    Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_GRAVE+LOCATION_REMOVED)
-end
-
-function s.spop(e,tp,eg,ep,ev,re,r,rp)
-    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-    local g=Duel.SelectMatchingCard(tp,s.spfilter,tp,LOCATION_GRAVE+LOCATION_REMOVED,0,1,1,nil,e,tp)
-    if #g>0 then
-        Duel.SpecialSummon(g,0,tp,tp,false,false,POS_FACEUP)
-
-         -- Gain 1000 ATK/DEF
-        local c=e:GetHandler()
-        local e1=Effect.CreateEffect(c)
-        e1:SetType(EFFECT_TYPE_SINGLE)
-        e1:SetCode(EFFECT_UPDATE_ATTACK)
-        e1:SetValue(500)
-
-        c:RegisterEffect(e1)
-
-        local e2=e1:Clone()
-        e2:SetCode(EFFECT_UPDATE_DEFENSE)
-        c:RegisterEffect(e2)
-
-    end
-end
-
-function s.negcon(e,tp,eg,ep,ev,re,r,rp)
-    local c=e:GetHandler()
-    -- First opponent effect of the turn
-    return rp~=tp and Duel.IsChainDisablable(ev)
-end
-
-function s.negop(e,tp,eg,ep,ev,re,r,rp)
-    local c=e:GetHandler()
-    -- Negate the effect
-    Duel.SetOperationInfo(0,CATEGORY_NEGATE,eg,1,0,0)
-    Duel.NegateEffect(ev)
-    --Duel.NegateActivation(ev)
-
-    -- Gain 500 ATK/DEF
     local e1=Effect.CreateEffect(c)
     e1:SetType(EFFECT_TYPE_SINGLE)
-    e1:SetCode(EFFECT_UPDATE_ATTACK)
-    e1:SetValue(500)
-
+    e1:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
+    e1:SetCode(EFFECT_CHANGE_CODE)
+    e1:SetRange(LOCATION_GRAVE)
+    e1:SetValue(CARD_DARK_MAGICIAN)
     c:RegisterEffect(e1)
 
-    local e2=e1:Clone()
-    e2:SetCode(EFFECT_UPDATE_DEFENSE)
-    c:RegisterEffect(e2)
+    -- Search Chaos Scepter cards on Ritual Summon
+    local e3=Effect.CreateEffect(c)
+    e3:SetDescription(aux.Stringid(id,0))
+    e3:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
+    e3:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_F)
+    e3:SetCode(EVENT_SPSUMMON_SUCCESS)
+    e3:SetCondition(function(e,tp,eg,ep,ev,re,r,rp)
+        return e:GetHandler():IsSummonType(SUMMON_TYPE_RITUAL)
+    end)
+    e3:SetTarget(s.thtg)
+    e3:SetOperation(s.thop)
+    c:RegisterEffect(e3)
 
+    -- Allow Quick-Play Spell activation from hand during opponent's turn
+    local e4=Effect.CreateEffect(c)
+    e4:SetType(EFFECT_TYPE_FIELD)
+    e4:SetCode(EFFECT_QP_ACT_IN_NTPHAND)
+    e4:SetRange(LOCATION_MZONE)
+    e4:SetTargetRange(LOCATION_HAND,0)
+    e4:SetTarget(function(e,c)
+        return c:IsType(TYPE_QUICKPLAY)
+    end)
+    c:RegisterEffect(e4)
+
+end
+
+function s.thfilter(c)
+    return (c:IsCode(32345675) or c:IsCode(15256925) or c:IsCode(32345683))
+        and c:IsAbleToHand()
+end
+
+function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
+    if chk==0 then return Duel.IsExistingMatchingCard(s.thfilter,tp,LOCATION_DECK+LOCATION_GRAVE,0,1,nil) end
+    Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK+LOCATION_GRAVE)
+end
+
+function s.thop(e,tp,eg,ep,ev,re,r,rp)
+    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
+    local g=Duel.SelectMatchingCard(tp,s.thfilter,tp,LOCATION_DECK+LOCATION_GRAVE,0,1,1,nil)
+    if #g>0 then
+        Duel.SendtoHand(g,nil,REASON_EFFECT)
+        Duel.ConfirmCards(1-tp,g)
+    end
 end

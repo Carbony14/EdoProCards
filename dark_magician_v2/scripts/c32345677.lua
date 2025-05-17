@@ -10,19 +10,7 @@ function s.initial_effect(c)
 	e0:SetCountLimit(1,id)
     c:RegisterEffect(e0)
 
-    -- ATK/DEF boost + Unaffected for "Magician of Black Chaos"
-    local e1=Effect.CreateEffect(c)
-    e1:SetType(EFFECT_TYPE_FIELD)
-    e1:SetCode(EFFECT_UPDATE_ATTACK)
-    e1:SetRange(LOCATION_SZONE)
-    e1:SetTargetRange(LOCATION_MZONE,0)
-    e1:SetTarget(s.statfilter)
-    e1:SetValue(500)
-    c:RegisterEffect(e1)
-    local e2=e1:Clone()
-    e2:SetCode(EFFECT_UPDATE_DEFENSE)
-    c:RegisterEffect(e2)
-
+    -- IMMUNE EFFECT
     local e3=Effect.CreateEffect(c)
     e3:SetType(EFFECT_TYPE_FIELD)
     e3:SetCode(EFFECT_IMMUNE_EFFECT)
@@ -32,17 +20,15 @@ function s.initial_effect(c)
     e3:SetValue(s.efilter)
     c:RegisterEffect(e3)
 
-    -- Banish effect
+    -- Add Chaos Scepters up to the number of "Magician of Black Chaos" you control
     local e4=Effect.CreateEffect(c)
     e4:SetDescription(aux.Stringid(id,0))
-    e4:SetCategory(CATEGORY_REMOVE)
-    e4:SetType(EFFECT_TYPE_FIELD + EFFECT_TYPE_TRIGGER_O)
-    e4:SetCode(EVENT_CHAIN_SOLVING)
+    e4:SetCategory(CATEGORY_TOHAND)
+    e4:SetType(EFFECT_TYPE_IGNITION)
     e4:SetRange(LOCATION_SZONE)
-    e4:SetCondition(s.rmcon)
-    e4:SetTarget(s.rmtg)
-    e4:SetOperation(s.rmop)
-    e4:SetCountLimit(1)
+    e4:SetCountLimit(1,id+100)
+    e4:SetTarget(s.thtg)
+    e4:SetOperation(s.thop)
     c:RegisterEffect(e4)
 
 end
@@ -57,24 +43,27 @@ function s.efilter(e,te)
     return te:GetOwnerPlayer()~=e:GetHandlerPlayer()
 end
 
--- Trigger condition: A "Magician of Black Chaos" you control activates an effect
-function s.rmcon(e,tp,eg,ep,ev,re,r,rp)
-    local rc=re:GetHandler()
-    return rc and rc:IsControler(tp) and rc:IsCode(30208479)
+function s.thfilter(c)
+    return c:IsType(TYPE_SPELL+TYPE_QUICKPLAY) and c:IsAbleToHand() and s.isChaosScepter(c)
 end
 
--- Banish target
-function s.rmtg(e,tp,eg,ep,ev,re,r,rp,chk)
-    local g=Duel.GetMatchingGroup(aux.TRUE,tp,0,LOCATION_ONFIELD+LOCATION_GRAVE,nil)
-    if chk==0 then return #g>0 end
-    Duel.SetOperationInfo(0,CATEGORY_REMOVE,g,1,0,0)
+function s.isChaosScepter(c)
+    return c:IsCode(32345675) or c:IsCode(15256925) or c:IsCode(32345683) -- add all Chaos Scepter codes here
 end
 
--- Banish operation
-function s.rmop(e,tp,eg,ep,ev,re,r,rp)
-    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_REMOVE)
-    local g=Duel.SelectMatchingCard(tp,aux.TRUE,tp,0,LOCATION_ONFIELD+LOCATION_GRAVE,1,1,nil)
+function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
+    local ct=Duel.GetMatchingGroupCount(Card.IsCode,tp,LOCATION_MZONE,0,nil,30208479)
+    if chk==0 then return ct>0 and Duel.IsExistingMatchingCard(s.thfilter,tp,LOCATION_GRAVE,0,1,nil) end
+    Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_GRAVE)
+end
+
+function s.thop(e,tp,eg,ep,ev,re,r,rp)
+    local ct=Duel.GetMatchingGroupCount(Card.IsCode,tp,LOCATION_MZONE,0,nil,30208479)
+    if ct==0 then return end
+    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
+    local g=Duel.SelectMatchingCard(tp,s.thfilter,tp,LOCATION_GRAVE,0,1,ct,nil)
     if #g>0 then
-        Duel.Remove(g,POS_FACEUP,REASON_EFFECT)
+        Duel.SendtoHand(g,nil,REASON_EFFECT)
+        Duel.ConfirmCards(1-tp,g)
     end
 end

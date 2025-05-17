@@ -5,6 +5,7 @@ s.listed_names={CARD_DARK_MAGICIAN}
 function s.initial_effect(c)
 	--fusion material
 	c:EnableReviveLimit()
+    c:AddMustBeFusionSummoned()
     c:SetSPSummonOnce(id)
 	Fusion.AddProcMix(c,true,true,s.fusionfilterFR,s.fusionfilterGeneric) -- at least 2 matching cards
     Fusion.AddContactProc(c,s.contactfilter,s.contactop,s.contactlimit)
@@ -38,6 +39,7 @@ function s.initial_effect(c)
     e2:SetCode(EVENT_FREE_CHAIN)
     e2:SetRange(LOCATION_MZONE)
     e2:SetHintTiming(0,TIMINGS_CHECK_MONSTER+TIMING_MAIN_END)
+    e2:SetCondition(function(e,tp,eg,ep,ev,re,r,rp) return Duel.GetTurnPlayer() == tp end)
     e2:SetCountLimit(1,id+1)
     e2:SetTarget(s.rmtg)
     e2:SetOperation(s.rmop)

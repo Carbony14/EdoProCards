@@ -63,7 +63,7 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
     for tc in aux.Next(sg) do
     -- This checks if the monster is now treated as "Magician of Black Chaos"
         if tc:IsCode(30208479) or tc:GetCode() == 30208479 then
-            s.GiveChaosNegateEffect(tc, e)
+            -- s.GiveChaosNegateEffect(tc, e)
         end
     end
 
