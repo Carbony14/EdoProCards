@@ -8,24 +8,26 @@ function s.initial_effect(c)
     e1:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_TOGRAVE)
     e1:SetType(EFFECT_TYPE_ACTIVATE)
     e1:SetCode(EVENT_FREE_CHAIN)
-    e1:SetCountLimit(1,id) -- once per turn
+    e1:SetCountLimit(1,id,EFFECT_COUNT_CODE_OATH)
     e1:SetTarget(s.target)
     e1:SetCondition(s.act_condition)
     e1:SetCost(s.cost)
     e1:SetOperation(s.activate)
     c:RegisterEffect(e1)
 
-    -- e2: Change name to revealed Fusion Monster
-    local e2=Effect.CreateEffect(c)
-    e2:SetDescription(aux.Stringid(30208479,1))
-    e2:SetCategory(CATEGORY_REMOVE)
-    e2:SetType(EFFECT_TYPE_IGNITION)
-    e2:SetRange(LOCATION_GRAVE)
-    e2:SetCondition(s.e2con)
-    e2:SetCost(s.e2cost)
-    e2:SetTarget(s.e2tg)
-    e2:SetOperation(s.e2op)
-    c:RegisterEffect(e2)
+    --e2: GY Quick effect Chaos Form Ritual
+	local e2=Effect.CreateEffect(c)
+	e2:SetDescription(aux.Stringid(id,1))
+	e2:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_DESTROY)
+	e2:SetType(EFFECT_TYPE_QUICK_O)
+	e2:SetCode(EVENT_FREE_CHAIN)
+	e2:SetRange(LOCATION_GRAVE)
+	e2:SetCountLimit(1,id,EFFECT_COUNT_CODE_OATH)
+	e2:SetCondition(s.spcon)
+	e2:SetCost(aux.bfgcost)
+	e2:SetTarget(s.sptg)
+	e2:SetOperation(s.spop)
+	c:RegisterEffect(e2)
 
 end
 
@@ -72,13 +74,6 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
         tc:CompleteProcedure()
     end
     Duel.SpecialSummonComplete()
-
-    for tc in aux.Next(sg) do
-    -- This checks if the monster is now treated as "Magician of Black Chaos"
-        if tc:IsCode(30208479) or tc:GetCode() == 30208479 then
-            -- s.GiveChaosNegateEffect(tc, e)
-        end
-    end
 
 end
 
@@ -164,42 +159,53 @@ function s.cost(e,tp,eg,ep,ev,re,r,rp,chk)
 end
 
 
--- Condition: Control "Magician of Black Chaos"
-function s.e2con(e,tp,eg,ep,ev,re,r,rp)
-	return Duel.IsExistingMatchingCard(aux.FaceupFilter(Card.IsCode,30208479),tp,LOCATION_MZONE,0,1,nil)
+--Control DM and MBC in field or GY
+function s.spfilter2(c,code)
+	return c:IsCode(code) and (c:IsLocation(LOCATION_MZONE) or c:IsLocation(LOCATION_GRAVE))
 end
 
--- Cost: Banish this card from GY
-function s.e2cost(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return e:GetHandler():IsAbleToRemoveAsCost() end
-	Duel.Remove(e:GetHandler(),POS_FACEUP,REASON_COST)
+function s.spcon(e,tp,eg,ep,ev,re,r,rp)
+	return Duel.IsExistingMatchingCard(s.spfilter2,tp,LOCATION_MZONE+LOCATION_GRAVE,0,1,nil,46986414)
+	   and Duel.IsExistingMatchingCard(s.spfilter2,tp,LOCATION_MZONE+LOCATION_GRAVE,0,1,nil,30208479)
 end
 
--- Target: Reveal 1 Fusion Monster, target 1 "Magician of Black Chaos"
-function s.e2tg(e,tp,eg,ep,ev,re,r,rp,chk)
+--Chaos Form Spellcaster Ritual filter
+function s.chaosfilter(c,e,tp)
+	return c:IsRace(RACE_SPELLCASTER) and c:IsType(TYPE_RITUAL)
+		and c:ListsCode(21082832) -- Chaos Form
+		and c:IsCanBeSpecialSummoned(e,SUMMON_TYPE_SPECIAL,tp,true,false)
+end
+
+function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then
-		return Duel.IsExistingMatchingCard(aux.FaceupFilter(Card.IsCode,30208479),tp,LOCATION_MZONE,0,1,nil)
-			and Duel.IsExistingMatchingCard(Card.IsType,tp,LOCATION_EXTRA,0,1,nil,TYPE_FUSION)
+		return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
+			and Duel.IsExistingMatchingCard(s.chaosfilter,tp,LOCATION_DECK+LOCATION_GRAVE+LOCATION_HAND,0,1,nil,e,tp)
 	end
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_CONFIRM)
-	local g=Duel.SelectMatchingCard(tp,Card.IsType,tp,LOCATION_EXTRA,0,1,1,nil,TYPE_FUSION)
-	Duel.ConfirmCards(1-tp,g)
-	e:SetLabel(g:GetFirst():GetCode())
-	Duel.ShuffleExtra(tp)
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_FACEUP)
-	local tc=Duel.SelectMatchingCard(tp,aux.FaceupFilter(Card.IsCode,30208479),tp,LOCATION_MZONE,0,1,1,nil):GetFirst()
-	Duel.SetTargetCard(tc)
+	Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_DECK+LOCATION_GRAVE+LOCATION_HAND)
+	Duel.SetOperationInfo(0,CATEGORY_DESTROY,nil,0,PLAYER_ALL,0)
 end
 
--- Operation: Change name
-function s.e2op(e,tp,eg,ep,ev,re,r,rp)
-	local tc=Duel.GetFirstTarget()
-	if not tc or not tc:IsRelateToEffect(e) then return end
-	local code=e:GetLabel()
-	local e1=Effect.CreateEffect(e:GetHandler())
-	e1:SetType(EFFECT_TYPE_SINGLE)
-	e1:SetCode(EFFECT_CHANGE_CODE)
-	e1:SetValue(code)
-	e1:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_END,2)
-	tc:RegisterEffect(e1)
+function s.sdfilter(c, e, tp)
+    return c:IsFaceup() and not (c:IsRace(RACE_SPELLCASTER) and c:IsControler(tp))
+end
+
+function s.sdatkfilter(c,atk)
+	return c:IsFaceup() and c:GetAttack()<=atk
+end
+
+function s.spop(e,tp,eg,ep,ev,re,r,rp)
+	if Duel.GetLocationCount(tp,LOCATION_MZONE)<=0 then return end
+	local g=Duel.SelectMatchingCard(tp,s.chaosfilter,tp,LOCATION_DECK+LOCATION_GRAVE+LOCATION_HAND,0,1,1,nil,e,tp)
+	local tc=g:GetFirst()
+	if not tc then return end
+	if Duel.SpecialSummon(tc,SUMMON_TYPE_RITUAL,tp,tp,true,false,POS_FACEUP)==0 then return end
+	Duel.SpecialSummonComplete()
+
+	-- Destroy all monsters with ATK <= summoned monster except your Spellcasters
+	local atk=tc:GetAttack()
+	local g1=Duel.GetMatchingGroup(s.sdfilter,tp,LOCATION_MZONE,LOCATION_MZONE,nil, e, tp)
+    local dg = g1:Filter(s.sdatkfilter, nil, atk)
+	if #dg>0 then
+		Duel.Destroy(dg,REASON_EFFECT)
+	end
 end
