@@ -37,6 +37,12 @@ function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
 	Duel.SetPossibleOperationInfo(0,CATEGORY_DRAW,nil,1,tp,1)
 end
 
+function s.lv1filter(c)
+	return c:IsLevel(1) and c:IsRace(RACE_SPELLCASTER)
+		and c:GetAttack()==0 and c:GetDefense()==0
+		and c:IsAbleToHand()
+end
+
 function s.activate(e,tp,eg,ep,ev,re,r,rp)
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
 	local g=Duel.SelectMatchingCard(tp,s.filter,tp,LOCATION_DECK+LOCATION_GRAVE,0,1,1,nil)
@@ -45,18 +51,20 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 		Duel.ConfirmCards(1-tp,g)
 		Duel.ShuffleDeck(tp)
 
-		if Duel.IsPlayerCanDraw(tp,1)
-			and Duel.IsExistingMatchingCard(s.dmfilter,tp,LOCATION_MZONE+LOCATION_GRAVE,0,1,nil) then
-			Duel.BreakEffect()
-			Duel.ShuffleDeck(tp)
+		-- If Dark Magician is on field or in GY, optionally add Level 1 Spellcaster 0/0
+		if Duel.IsExistingMatchingCard(s.dmfilter,tp,LOCATION_MZONE+LOCATION_GRAVE,0,1,nil)
+			and Duel.IsExistingMatchingCard(s.lv1filter,tp,LOCATION_DECK,0,1,nil)
+			and Duel.SelectYesNo(tp,aux.Stringid(id,0)) then
 
-			if Duel.SelectYesNo(tp, aux.Stringid(id, 0)) then
-				Duel.Draw(tp,1,REASON_EFFECT)
+			Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
+			local g2=Duel.SelectMatchingCard(tp,s.lv1filter,tp,LOCATION_DECK,0,1,1,nil)
+			if #g2>0 then
+				Duel.SendtoHand(g2,nil,REASON_EFFECT)
+				Duel.ConfirmCards(1-tp,g2)
+				Duel.ShuffleDeck(tp)
 			end
-
 		end
 	end
-
 end
 
 function s.dmfilter(c)

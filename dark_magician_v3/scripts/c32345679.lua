@@ -5,32 +5,62 @@ s.listed_names={CARD_DARK_MAGICIAN}
 function s.initial_effect(c)
 	--fusion material
 	c:EnableReviveLimit()
-    c:AddMustBeFusionSummoned()
-    c:SetSPSummonOnce(id)
+
 	Fusion.AddProcMix(c,true,true,s.fusionfilterFR,s.fusionfilterGeneric) -- at least 2 matching cards
     Fusion.AddContactProc(c,s.contactfilter,s.contactop,s.contactlimit)
 
     -- Name becomes "Magician of Black Chaos" while on the field or in the GY
-    local e0=Effect.CreateEffect(c)
-    e0:SetType(EFFECT_TYPE_SINGLE)
-    e0:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
-    e0:SetCode(EFFECT_CHANGE_CODE)
-    e0:SetRange(LOCATION_MZONE + LOCATION_GRAVE)
-    e0:SetValue(30208479)
-    c:RegisterEffect(e0)
+    local e2=Effect.CreateEffect(c)
+    e2:SetType(EFFECT_TYPE_SINGLE)
+    e2:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
+    e2:SetCode(EFFECT_CHANGE_CODE)
+    e2:SetRange(LOCATION_MZONE + LOCATION_GRAVE)
+    e2:SetValue(CARD_DARK_MAGICIAN)
+    c:RegisterEffect(e2)
 
     --Add one spell card that mentions Dark Magician or Magician of Black Chaos
-    local e1=Effect.CreateEffect(c)
-    e1:SetDescription(aux.Stringid(id,0))
-    e1:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
-    e1:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
-    e1:SetCode(EVENT_SPSUMMON_SUCCESS)
-    e1:SetProperty(EFFECT_FLAG_DELAY)
-    e1:SetCountLimit(1,id)
-    e1:SetTarget(s.on_special_summon_target)
-    e1:SetOperation(s.on_special_summon_operation)
-    c:RegisterEffect(e1)
+    local e3=Effect.CreateEffect(c)
+    e3:SetDescription(aux.Stringid(id,0))
+    e3:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
+    e3:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
+    e3:SetCode(EVENT_SPSUMMON_SUCCESS)
+    e3:SetProperty(EFFECT_FLAG_DELAY)
+    e3:SetCountLimit(2, id)
+    e3:SetTarget(s.on_special_summon_target)
+    e3:SetOperation(s.on_special_summon_operation)
+    c:RegisterEffect(e3)
 
+    local e4=Effect.CreateEffect(c)
+    e4:SetDescription(aux.Stringid(id,3))
+    e4:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
+    e4:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
+    e4:SetProperty(EFFECT_FLAG_DELAY)
+    e4:SetCode(EVENT_TO_GRAVE)
+    e4:SetCountLimit(1,id+300)
+    e4:SetTarget(s.thtg)
+    e4:SetOperation(s.thop)
+    c:RegisterEffect(e4)
+
+    local e4b=e4:Clone()
+    e4b:SetCode(EVENT_REMOVE)
+    c:RegisterEffect(e4b)
+
+end
+
+-- Cannot be Fusion Summoned more than once per turn
+function s.splimit(e,se,sp,st)
+	local c=e:GetHandler()
+	-- allow non-Fusion Special Summons (revives, etc.)
+	if st~=SUMMON_TYPE_FUSION then return true end
+	-- once per turn check
+	return Duel.GetFlagEffect(sp,c:GetCode())==0
+end
+
+function s.regop(e,tp,eg,ep,ev,re,r,rp)
+	local c=e:GetHandler()
+	if c:IsSummonType(SUMMON_TYPE_FUSION) then
+		Duel.RegisterFlagEffect(tp,c:GetCode(),RESET_PHASE+PHASE_END,0,1)
+	end
 end
 
 --START OF CONTACT FUSION CODE
@@ -81,3 +111,25 @@ function s.on_special_summon_operation(e,tp,eg,ep,ev,re,r,rp)
     end
 end
 --END OF ADD 1 CARD WHEN SPECIAL SUMMONED
+
+
+function s.thfilter(c)
+	return (c:IsCode(59514116) or c:IsCode(71143015)) and c:IsAbleToHand() -- Secrets of Dark Magic
+end
+
+function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
+	if chk==0 then
+		return Duel.IsExistingMatchingCard(s.thfilter,tp,LOCATION_DECK+LOCATION_GRAVE+LOCATION_REMOVED,0,1,nil)
+	end
+	Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK+LOCATION_GRAVE+LOCATION_REMOVED)
+end
+
+function s.thop(e,tp,eg,ep,ev,re,r,rp)
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
+	local g=Duel.SelectMatchingCard(tp,aux.NecroValleyFilter(s.thfilter),
+		tp,LOCATION_DECK+LOCATION_GRAVE+LOCATION_REMOVED,0,1,1,nil)
+	if #g>0 then
+		Duel.SendtoHand(g,nil,REASON_EFFECT)
+		Duel.ConfirmCards(1-tp,g)
+	end
+end
