@@ -4,7 +4,6 @@ local s,id=GetID()
 function s.initial_effect(c)
 	--Synchro Summon
 	c:EnableReviveLimit()
-	c:SetSPSummonOnce(id)
 	Synchro.AddProcedure(c,aux.FilterBoolFunction(Card.IsSetCard,0x42),1,1,Synchro.NonTuner(nil),1,99)
 
 	--Always treated as Aesir
@@ -14,69 +13,72 @@ function s.initial_effect(c)
 	e0:SetValue(0x42)
 	c:RegisterEffect(e0)
 
-	---------------------------------------------------
-	-- EFFECT 1: Monster Special Summon negate
-	---------------------------------------------------
-	local e2=Effect.CreateEffect(c)
-	e2:SetDescription(aux.Stringid(id,0))
-	e2:SetCategory(CATEGORY_DISABLE)
-	e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_QUICK_O)
-	e2:SetCode(EVENT_SPSUMMON_SUCCESS)
-	e2:SetRange(LOCATION_MZONE)
-	e2:SetCountLimit(1,id)
-	e2:SetCondition(s.moncon)
-	e2:SetCost(s.moncost)
-	e2:SetOperation(s.monop)
-	c:RegisterEffect(e2)
-
-	---------------------------------------------------
-	-- EFFECT 2: Spell/Trap negate
-	---------------------------------------------------
-	local e3=Effect.CreateEffect(c)
-	e3:SetDescription(aux.Stringid(id,1))
-	e3:SetCategory(CATEGORY_NEGATE)
-	e3:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_QUICK_O)
-	e3:SetCode(EVENT_CHAINING)
-	e3:SetRange(LOCATION_MZONE)
-	e3:SetCountLimit(1,id+1)
-	e3:SetCondition(s.spcon)
-	e3:SetOperation(s.spop)
-	c:RegisterEffect(e3)
+	--Quick Effect: choose effect
+	local e1=Effect.CreateEffect(c)
+	e1:SetDescription(aux.Stringid(id,0))
+	e1:SetType(EFFECT_TYPE_QUICK_O)
+	e1:SetCode(EVENT_FREE_CHAIN)
+	e1:SetRange(LOCATION_MZONE)
+	e1:SetCountLimit(1,id)
+	e1:SetOperation(s.operation)
+	c:RegisterEffect(e1)
 end
 
 ---------------------------------------------------
--- MONSTER EFFECT
+-- CHOOSE EFFECT
 ---------------------------------------------------
+function s.operation(e,tp,eg,ep,ev,re,r,rp)
+	local c=e:GetHandler()
+	local op=Duel.SelectOption(tp,
+		aux.Stringid(id,0),
+		aux.Stringid(id,1),
+		aux.Stringid(id,2)
+	)
 
-function s.moncon(e,tp,eg,ep,ev,re,r,rp)
-	return ep==1-tp and eg:IsExists(Card.IsControler,1,nil,1-tp)
-end
+	if op==0 then
+		--Lose 2 Levels
+		local e1=Effect.CreateEffect(c)
+		e1:SetType(EFFECT_TYPE_FIELD)
+		e1:SetCode(EFFECT_UPDATE_LEVEL)
+		e1:SetTargetRange(0,LOCATION_MZONE)
+		e1:SetValue(-2)
+		e1:SetReset(RESET_PHASE+PHASE_END)
+		Duel.RegisterEffect(e1,tp)
 
-function s.moncost(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(aux.TRUE,tp,LOCATION_HAND,0,1,nil) end
-	Duel.DiscardHand(tp,aux.TRUE,1,1,REASON_COST)
-end
+	elseif op==1 then
+		--Lose 1000 ATK
+		local e1=Effect.CreateEffect(c)
+		e1:SetType(EFFECT_TYPE_FIELD)
+		e1:SetCode(EFFECT_UPDATE_ATTACK)
+		e1:SetTargetRange(0,LOCATION_MZONE)
+		e1:SetValue(-1000)
+		e1:SetReset(RESET_PHASE+PHASE_END)
+		Duel.RegisterEffect(e1,tp)
 
-function s.monop(e,tp,eg,ep,ev,re,r,rp)
-	local g=eg:Filter(Card.IsControler,nil,1-tp)
-	if #g>0 then
-		local tc=g:GetFirst()
-		if tc then
-			Duel.NegateRelatedChain(tc,RESET_TURN_SET)
-		end
+	else
+		--Discard on add from Deck
+		local e1=Effect.CreateEffect(c)
+		e1:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
+		e1:SetCode(EVENT_TO_HAND)
+		e1:SetCondition(s.discon)
+		e1:SetOperation(s.disop)
+		e1:SetReset(RESET_PHASE+PHASE_END)
+		Duel.RegisterEffect(e1,tp)
 	end
 end
 
 ---------------------------------------------------
--- SPELL/TRAP EFFECT
+-- DISCARD CONDITION
 ---------------------------------------------------
-
-function s.spcon(e,tp,eg,ep,ev,re,r,rp)
-	return rp==1-tp and (re:IsActiveType(TYPE_SPELL) or re:IsActiveType(TYPE_TRAP))
+function s.discon(e,tp,eg,ep,ev,re,r,rp)
+	return ep==1-tp and re and re:IsActiveType(TYPE_EFFECT)
 end
 
-function s.spop(e,tp,eg,ep,ev,re,r,rp)
-	if Duel.NegateActivation(ev) then
-		Duel.Draw(rp,1,REASON_EFFECT)
+---------------------------------------------------
+-- DISCARD OPERATION
+---------------------------------------------------
+function s.disop(e,tp,eg,ep,ev,re,r,rp)
+	if Duel.GetFieldGroupCount(1-tp,LOCATION_HAND,0)>0 then
+		Duel.DiscardHand(1-tp,aux.TRUE,1,1,REASON_EFFECT+REASON_DISCARD)
 	end
 end
